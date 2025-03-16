@@ -1,0 +1,10 @@
+@api_InvoicePortal_HostAddress = http://localhost:5072
+
+
+POST {{api_InvoicePortal_HostAddress}}/api/login
+Accept: application/json
+
+POST {{api_InvoicePortal_HostAddress}}/api/Ledger/create
+Accept: application/json
+
+###
