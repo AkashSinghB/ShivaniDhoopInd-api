@@ -4,9 +4,7 @@ using API_TurboeSigner_V2.App_Dal;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
-using System.Text;
 using System.Data;
 using System.Reflection;
 
@@ -15,15 +13,15 @@ namespace api_InvoicePortal.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
-    public class LedgerController : Controller
+    public class ProductController : Controller
     {
         private readonly IConfiguration _config;
         private readonly ILogger<LedgerController> _logger;
         private readonly DataClass _dataCls;
         private readonly DTO _dto;
-        private readonly string procName = "LedgerMasterProc";
+        private readonly string procName = "ProductMasterProc";
 
-        public LedgerController(IConfiguration config, ILogger<LedgerController> logger)
+        public ProductController(IConfiguration config, ILogger<LedgerController> logger)
         {
             _logger = logger;
             _config = config;
@@ -32,39 +30,39 @@ namespace api_InvoicePortal.Controllers
         }
 
         [HttpGet("fetch/{id}")]
-        public IActionResult FetchLedger(int id)
+        public IActionResult FetchProduct(int id)
         {
             DataSet ds = new();
             List<SqlParameter> param = new();
             param.Add(new SqlParameter("@action", "fetch"));
-            param.Add(new SqlParameter("@LedgerPid", id));
+            param.Add(new SqlParameter("@Pid", id));
             _dataCls.GetDataset(procName, ref ds, param);
             if (ds.Tables[0].Rows.Count == 0) return BadRequest("data not found");
 
-            _logger.LogInformation("Ledger fetched: {LedgerID}", id);
+            _logger.LogInformation("Product fetched: {ProductID}", id);
             return Ok(ds);
         }
-        
-        [HttpPost("create")]
-        public IActionResult InsertLedger(LedgerModel ledger)
-        {
-            if (ledger == null) return BadRequest();
 
-            int res = _dto.DataOperationsLedger(_config, ledger, "INST");                                                                                 
+        [HttpPost("create")]
+        public IActionResult InsertProdut(ProductModel model)
+        {
+            if (model == null) return BadRequest();
+
+            int res = _dto.DataOperationsProduct(_config, model, "INST");
             if (res > 0)
             {
-                _logger.LogInformation("Ledger inserted: {LedgerName}", ledger.CompanyName);
+                _logger.LogInformation("Product inserted: {productName}", model.ProductName);
                 var successResponse = new SuccessResponse
                 {
                     Result = "Success",
-                    Remarks = "Ledger created successfully"
+                    Remarks = "Product created successfully"
                 };
 
                 return Ok(successResponse);
             }
             else
             {
-                _logger.LogInformation("Ledger insert Error: {LedgerName}", ledger.CompanyName);
+                _logger.LogInformation("Ledger insert Error: {ProductName}", model.ProductName);
                 CommonError Err = new CommonError();
                 Err.Error_Msg = "Something went wrong or Data not Found!";
                 Err.Error_Code = "600";
@@ -74,22 +72,22 @@ namespace api_InvoicePortal.Controllers
         }
 
         [HttpPut("update/{id}")]
-        public IActionResult UpdateLedger(int id, LedgerModel updatedLedger)
+        public IActionResult UpdateProduct(int id, ProductModel model)
         {
-            if (updatedLedger == null) return BadRequest();
+            if (model == null) return BadRequest();
 
-            int res = _dto.DataOperationsLedger(_config, updatedLedger, "UPDT", id);
+            int res = _dto.DataOperationsProduct(_config, model, "UPDT", id);
             if (res > 0)
             {
-                _logger.LogInformation("Ledger inserted: {LedgerName}", updatedLedger.CompanyName);
+                _logger.LogInformation("Ledger inserted: {ProductName}", model.ProductName);
                 dynamic SuccessObj = new JObject();
                 SuccessObj.Result = "Success";
-                SuccessObj.Remarks = "Ledger updated successfully";
+                SuccessObj.Remarks = "Product updated successfully";
                 return Ok(SuccessObj);
             }
             else
             {
-                _logger.LogInformation("Ledger insert Error: {LedgerName}", updatedLedger.CompanyName);
+                _logger.LogInformation("Ledger insert Error: {ProductName}", model.ProductName);
                 CommonError Err = new CommonError();
                 Err.Error_Msg = "Something went wrong or Data not Found!";
                 Err.Error_Code = "601";
@@ -99,21 +97,21 @@ namespace api_InvoicePortal.Controllers
         }
 
         [HttpDelete("del/{id}")]
-        public IActionResult DeleteLedger(int id)
+        public IActionResult DeleteProduct(int id)
         {
-            List<SqlParameter> param = [new SqlParameter("@action", "DEL"), new SqlParameter("@LedgerPid", id)];
+            List<SqlParameter> param = [new SqlParameter("@action", "DEL"), new SqlParameter("@Pid", id)];
             int res = _dataCls.ExecuteNonQuery(procName, param);
-            if (res > 0)
+            if(res > 0)
             {
-                _logger.LogInformation("Ledger deleted: {LedgerPid}", id);
+                _logger.LogInformation("Product deleted: {ProductPid}", id);
                 dynamic SuccessObj = new JObject();
                 SuccessObj.Result = "Success";
-                SuccessObj.Remarks = "Ledger Deleted successfully";
+                SuccessObj.Remarks = "Product Deleted successfully";
                 return Ok(SuccessObj);
             }
             else
             {
-                _logger.LogInformation("Ledger delete Error: {LedgerPid}", id);
+                _logger.LogInformation("Product delete Error: {ProductPid}", id);
                 CommonError Err = new CommonError();
                 Err.Error_Msg = "Something went wrong or Data not Found!";
                 Err.Error_Code = "601";
@@ -123,15 +121,15 @@ namespace api_InvoicePortal.Controllers
         }
 
         [HttpGet("fetch/Basedata")]
-        public IActionResult FetchBaseLedger()
+        public IActionResult FetchBaseProduct()
         {
             DataTable dt = new();
             List<SqlParameter> param = new();
             param.Add(new SqlParameter("@action", "show"));
-            _dataCls.GetDatatable("BaseData_LedgerMasterProc", ref dt, param);
-            if(dt.Rows.Count == 0 ) return BadRequest("data not found");
+            _dataCls.GetDatatable("BaseData_ProductMasterProc", ref dt, param);
+            if (dt.Rows.Count == 0) return BadRequest("data not found");
 
-            _logger.LogInformation("Ledger fetched: Basedata");
+            _logger.LogInformation("All Products fetched: Basedata");
             return Ok(dt);
         }
     }
