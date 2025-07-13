@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Newtonsoft.Json.Linq;
 using System.Data;
-using System.Reflection;
 
 namespace api_InvoicePortal.Controllers
 {
@@ -48,10 +47,10 @@ namespace api_InvoicePortal.Controllers
         {
             if (model == null) return BadRequest();
 
-            int res = _dto.DataOperationsProduct(_config, model, "INST");
+            int res = _dto.DataOperationsProduct(model, "INST");
             if (res > 0)
             {
-                _logger.LogInformation("Product inserted: {productName}", model.ProductName);
+                _logger.LogInformation("Product created: {productName}", model.ProductName);
                 var successResponse = new SuccessResponse
                 {
                     Result = "Success",
@@ -62,7 +61,7 @@ namespace api_InvoicePortal.Controllers
             }
             else
             {
-                _logger.LogInformation("Ledger insert Error: {ProductName}", model.ProductName);
+                _logger.LogInformation("Product creation Error: {ProductName}", model.ProductName);
                 CommonError Err = new CommonError();
                 Err.Error_Msg = "Something went wrong or Data not Found!";
                 Err.Error_Code = "600";
@@ -76,10 +75,10 @@ namespace api_InvoicePortal.Controllers
         {
             if (model == null) return BadRequest();
 
-            int res = _dto.DataOperationsProduct(_config, model, "UPDT", id);
+            int res = _dto.DataOperationsProduct(model, "UPDT", id);
             if (res > 0)
             {
-                _logger.LogInformation("Ledger inserted: {ProductName}", model.ProductName);
+                _logger.LogInformation("Product updated: {ProductName}", model.ProductName);
                 dynamic SuccessObj = new JObject();
                 SuccessObj.Result = "Success";
                 SuccessObj.Remarks = "Product updated successfully";
@@ -87,7 +86,7 @@ namespace api_InvoicePortal.Controllers
             }
             else
             {
-                _logger.LogInformation("Ledger insert Error: {ProductName}", model.ProductName);
+                _logger.LogInformation("Product udpation Error: {ProductName}", model.ProductName);
                 CommonError Err = new CommonError();
                 Err.Error_Msg = "Something went wrong or Data not Found!";
                 Err.Error_Code = "601";
@@ -101,7 +100,7 @@ namespace api_InvoicePortal.Controllers
         {
             List<SqlParameter> param = [new SqlParameter("@action", "DEL"), new SqlParameter("@Pid", id)];
             int res = _dataCls.ExecuteNonQuery(procName, param);
-            if(res > 0)
+            if (res > 0)
             {
                 _logger.LogInformation("Product deleted: {ProductPid}", id);
                 dynamic SuccessObj = new JObject();
@@ -111,7 +110,7 @@ namespace api_InvoicePortal.Controllers
             }
             else
             {
-                _logger.LogInformation("Product delete Error: {ProductPid}", id);
+                _logger.LogInformation("Product deletion Error: {ProductPid}", id);
                 CommonError Err = new CommonError();
                 Err.Error_Msg = "Something went wrong or Data not Found!";
                 Err.Error_Code = "601";

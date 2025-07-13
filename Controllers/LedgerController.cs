@@ -4,11 +4,8 @@ using API_TurboeSigner_V2.App_Dal;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
-using System.Text;
 using System.Data;
-using System.Reflection;
 
 namespace api_InvoicePortal.Controllers
 {
@@ -44,16 +41,16 @@ namespace api_InvoicePortal.Controllers
             _logger.LogInformation("Ledger fetched: {LedgerID}", id);
             return Ok(ds);
         }
-        
+
         [HttpPost("create")]
         public IActionResult InsertLedger(LedgerModel ledger)
         {
             if (ledger == null) return BadRequest();
 
-            int res = _dto.DataOperationsLedger(_config, ledger, "INST");                                                                                 
+            int res = _dto.DataOperationsLedger(ledger, "INST");
             if (res > 0)
             {
-                _logger.LogInformation("Ledger inserted: {LedgerName}", ledger.CompanyName);
+                _logger.LogInformation("Ledger created: {LedgerName}", ledger.CompanyName);
                 var successResponse = new SuccessResponse
                 {
                     Result = "Success",
@@ -64,7 +61,7 @@ namespace api_InvoicePortal.Controllers
             }
             else
             {
-                _logger.LogInformation("Ledger insert Error: {LedgerName}", ledger.CompanyName);
+                _logger.LogInformation("Ledger creation Error: {LedgerName}", ledger.CompanyName);
                 CommonError Err = new CommonError();
                 Err.Error_Msg = "Something went wrong or Data not Found!";
                 Err.Error_Code = "600";
@@ -78,10 +75,10 @@ namespace api_InvoicePortal.Controllers
         {
             if (updatedLedger == null) return BadRequest();
 
-            int res = _dto.DataOperationsLedger(_config, updatedLedger, "UPDT", id);
+            int res = _dto.DataOperationsLedger(updatedLedger, "UPDT", id);
             if (res > 0)
             {
-                _logger.LogInformation("Ledger inserted: {LedgerName}", updatedLedger.CompanyName);
+                _logger.LogInformation("Ledger updated: {LedgerName}", updatedLedger.CompanyName);
                 dynamic SuccessObj = new JObject();
                 SuccessObj.Result = "Success";
                 SuccessObj.Remarks = "Ledger updated successfully";
@@ -89,7 +86,7 @@ namespace api_InvoicePortal.Controllers
             }
             else
             {
-                _logger.LogInformation("Ledger insert Error: {LedgerName}", updatedLedger.CompanyName);
+                _logger.LogInformation("Ledger updation Error: {LedgerName}", updatedLedger.CompanyName);
                 CommonError Err = new CommonError();
                 Err.Error_Msg = "Something went wrong or Data not Found!";
                 Err.Error_Code = "601";
@@ -113,7 +110,7 @@ namespace api_InvoicePortal.Controllers
             }
             else
             {
-                _logger.LogInformation("Ledger delete Error: {LedgerPid}", id);
+                _logger.LogInformation("Ledger deletion Error: {LedgerPid}", id);
                 CommonError Err = new CommonError();
                 Err.Error_Msg = "Something went wrong or Data not Found!";
                 Err.Error_Code = "601";
@@ -129,7 +126,7 @@ namespace api_InvoicePortal.Controllers
             List<SqlParameter> param = new();
             param.Add(new SqlParameter("@action", "show"));
             _dataCls.GetDatatable("BaseData_LedgerMasterProc", ref dt, param);
-            if(dt.Rows.Count == 0 ) return BadRequest("data not found");
+            if (dt.Rows.Count == 0) return BadRequest("data not found");
 
             _logger.LogInformation("Ledger fetched: Basedata");
             return Ok(dt);

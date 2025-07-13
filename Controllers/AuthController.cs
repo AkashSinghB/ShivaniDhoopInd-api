@@ -1,6 +1,7 @@
-﻿using api_InvoicePortal.Services;
+﻿using api_InvoicePortal.Dal;
+using api_InvoicePortal.Models;
+using api_InvoicePortal.Services;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Cryptography;
 
 namespace api_InvoicePortal.Controllers
 {
@@ -8,10 +9,14 @@ namespace api_InvoicePortal.Controllers
     [ApiController]
     public class AuthController : Controller
     {
+        private readonly IConfiguration _config;
+        private readonly ILogger<LedgerController> _logger;
         private readonly TokenService _tokenService;
 
-        public AuthController(TokenService tokenService)
+        public AuthController(IConfiguration config, ILogger<LedgerController> logger, TokenService tokenService)
         {
+            _logger = logger;
+            _config = config;
             _tokenService = tokenService;
         }
 
@@ -22,21 +27,18 @@ namespace api_InvoicePortal.Controllers
             {
                 return BadRequest("Invalid request");
             }
+            //string hashedPassword = BCrypt.Net.BCrypt.HashPassword(login.Password);
 
-            // Simulate user validation (replace with real DB check)
-            if (login.Username == "admin" && login.Password == "password")
+            DTO dto = new(_config);
+            string msg = string.Empty;
+            if (dto.Dto_Login(login, out msg))
+            //if (login.Username == "admin" && login.Password == "akash@123")
             {
                 var token = _tokenService.GenerateToken(login.Username);
                 return Ok(new { Token = token });
             }
 
-            return Unauthorized("Invalid credentials");
+            return Unauthorized("Invalid credentials : " + msg);
         }
-    }
-
-    public class LoginModel
-    {
-        public string Username { get; set; }
-        public string Password { get; set; }
     }
 }
