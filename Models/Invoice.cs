@@ -8,6 +8,10 @@
         public required string InvoiceNo { get; set; }
         public DateTime InvoiceDate { get; set; }
         public decimal TotalAmount { get; set; }
+        public decimal GSTAmount { get; set; }
+        public decimal CGSTAmount { get; set; }
+        public decimal SGSTAmount { get; set; }
+        public decimal IGSTAmount { get; set; }
         public required string PaymentStatus { get; set; }
         public required List<InvoiceItem> InvoiceDetails { get; set; }
     }

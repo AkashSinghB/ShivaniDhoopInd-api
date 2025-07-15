@@ -120,6 +120,10 @@ namespace api_InvoicePortal.Dal
                     new SqlParameter("@InvoiceNo", Model.InvoiceNo),
                     new SqlParameter("@InvoiceDate", Model.InvoiceDate),
                     new SqlParameter("@TotalAmount", Model.TotalAmount),
+                    new SqlParameter("@GSTAmount", Model.GSTAmount),
+                    new SqlParameter("@SGSTAmount", Model.SGSTAmount),
+                    new SqlParameter("@CGSTAmount", Model.CGSTAmount),
+                    new SqlParameter("@IGSTAmount", Model.IGSTAmount),
                     new SqlParameter("@PaymentStatus", Model.PaymentStatus),
                 ];
                 DataTable dtInvoiceDetails = new();

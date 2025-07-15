@@ -160,19 +160,19 @@ namespace api_InvoicePortal.Controllers
             {
                 InvoiceExcelGenerator invoiceExcelGenerator = new(_config, _logger);
                 invoiceExcelGenerator.MainFun(ds);
-                _logger.LogInformation("Invoice deleted: {InvoicePid}", id);
+                _logger.LogInformation("Invoice Printed: {InvoicePid}", id);
                 dynamic SuccessObj = new JObject();
                 SuccessObj.Result = "Success";
-                SuccessObj.Remarks = "Invoice Deleted successfully";
+                SuccessObj.Remarks = "Invoice Printed successfully";
                 return Ok(SuccessObj);
             }
             else
             {
-                _logger.LogInformation("Invoice deletion Error: {InvoicePid}", id);
+                _logger.LogInformation("Invoice Printed Error: {InvoicePid}", id);
                 CommonError Err = new CommonError();
                 Err.Error_Msg = "Something went wrong or Data not Found!";
                 Err.Error_Code = "601";
-                Err.Error_Type = "Data deletion failed";
+                Err.Error_Type = "Data Print failed";
                 return BadRequest(Err);
             }
         }

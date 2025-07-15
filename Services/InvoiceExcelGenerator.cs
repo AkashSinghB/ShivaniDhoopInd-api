@@ -25,6 +25,9 @@ namespace api_InvoicePortal.Services
                 DataTable dtCompany = ds.Tables[0];
                 DataTable dtParty = ds.Tables[1];
                 DataTable dtInvLineItem = ds.Tables[2];
+                DataTable distinctHsnCode = ds.Tables[3];
+                //DataTable distinctHsnCode = ds.Tables[2].AsEnumerable().GroupBy(row => row["HsnCode"]).Select(g => g.First()).CopyToDataTable();
+
                 string TemplateFileName = "TemplateInvoice.xlsx",
                 RootPath = _config.GetValue<string>("MySetting:RootPath").ToString(),
                     TemplatePath = Path.Combine(RootPath, _config.GetValue<string>("MySetting:TemplatePath").ToString(), TemplateFileName),
@@ -33,6 +36,18 @@ namespace api_InvoicePortal.Services
                 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
                 using var stream = new FileStream(TemplatePath, FileMode.Open, FileAccess.Read, FileShare.Read);
                 using var package = new ExcelPackage(stream);
+                int InvTaxType = 0;
+                if (dtCompany.Rows[0]["StateCode"].ToString() == dtParty.Rows[0]["StateCode"].ToString())
+                {
+                    InvTaxType = 0; //if same state code then CGST & SGST
+                    package.Workbook.Worksheets.Delete("Sheet2");
+                }
+                else
+                {
+                    InvTaxType = 1;  //else IGST
+                    package.Workbook.Worksheets.Delete("Sheet1");
+                }
+
                 var worksheet = package.Workbook.Worksheets[0];
 
                 worksheet.Cells["D2"].Value = dtCompany.Rows[0]["CompanyName"].ToString().ToUpper();
@@ -41,8 +56,8 @@ namespace api_InvoicePortal.Services
                 worksheet.Cells["E7"].Value = dtCompany.Rows[0]["PhoneNumber"].ToString();
                 worksheet.Cells["E8"].Value = dtCompany.Rows[0]["Email"].ToString();
                 worksheet.Cells["E9"].Value = dtCompany.Rows[0]["GSTNumber"].ToString();
-                worksheet.Cells["D63"].Value = dtCompany.Rows[0]["PAN"].ToString();
-                worksheet.Cells["H64"].Value = "for " + dtCompany.Rows[0]["CompanyName"].ToString().ToUpper();
+                worksheet.Cells["D57"].Value = dtCompany.Rows[0]["PAN"].ToString();
+                worksheet.Cells["H58"].Value = "for " + dtCompany.Rows[0]["CompanyName"].ToString().ToUpper();
 
                 //------------ Ship to ----------
                 worksheet.Cells["A11"].Value = dtParty.Rows[0]["LedgerName"].ToString().ToUpper();
@@ -63,10 +78,10 @@ namespace api_InvoicePortal.Services
                 //------------ Invoice Dtl ----------
                 worksheet.Cells["G11"].Value = dtParty.Rows[0]["InvoiceNo"].ToString();
                 worksheet.Cells["I11"].Value = Convert.ToDateTime(dtParty.Rows[0]["InvoiceDate"].ToString()).ToString("dd-MMM-yy");
-                worksheet.Cells["K49"].Value = "₹ " + dtParty.Rows[0]["TotalAmount"].ToString();
+                //worksheet.Cells["K44"].Value = "₹ " + dtParty.Rows[0]["TotalAmount"].ToString();
 
                 //------------ Line Items ----------
-                int ExlRowNo = 28, SrNo = 1; decimal TotalQty = 0;
+                int ExlRowNo = 28, SrNo = 1; decimal TotalQty = 0, TotalChargeableAmt = 0;
                 foreach (DataRow dr in dtInvLineItem.Rows)
                 {
                     TotalQty += Convert.ToDecimal(dr["Quantity"]);
@@ -77,16 +92,140 @@ namespace api_InvoicePortal.Services
                     worksheet.Cells["H" + ExlRowNo].Value = Convert.ToDecimal(dr["UnitPrice"]);
                     worksheet.Cells["I" + ExlRowNo].Value = "kg";//product Unit
                     worksheet.Cells["J" + ExlRowNo].Value = "";//discount
-                    worksheet.Cells["K" + ExlRowNo].Value = Convert.ToDecimal(dr["TotalPrice"]).ToString("D2");
+                    worksheet.Cells["K" + ExlRowNo].Value = Convert.ToDecimal(dr["TotalPrice"]).ToString("F2");
 
                     worksheet.Cells["B" + (ExlRowNo + 1)].Value = dr["Description"].ToString();
 
                     ExlRowNo += 2;
                 }
-                worksheet.Cells["G49"].Value = TotalQty;
+                worksheet.Cells["G44"].Value = TotalQty;
+                worksheet.Cells["K" + ExlRowNo].Value = dtParty.Rows[0]["TotalAmount"].ToString();
+                worksheet.Cells["K" + ExlRowNo].Style.Border.Top.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+
+                if (InvTaxType == 0) //sgst cgst
+                {
+                    TotalChargeableAmt = Convert.ToDecimal(dtParty.Rows[0]["TotalAmount"]) + Convert.ToDecimal(dtParty.Rows[0]["CGSTAmount"]) + Convert.ToDecimal(dtParty.Rows[0]["CGSTAmount"]);
+                    worksheet.Cells["B" + (ExlRowNo + 1)].Value = "Output CSGT";
+                    worksheet.Cells["B" + (ExlRowNo + 1)].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Right;
+                    worksheet.Cells["K" + (ExlRowNo + 1)].Value = Convert.ToDecimal(dtParty.Rows[0]["CGSTAmount"]).ToString("F2");
+                    worksheet.Cells["B" + (ExlRowNo + 2)].Value = "Output SGST";
+                    worksheet.Cells["B" + (ExlRowNo + 2)].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Right;
+                    worksheet.Cells["K" + (ExlRowNo + 2)].Value = Convert.ToDecimal(dtParty.Rows[0]["SGSTAmount"]).ToString("F2");
+                }
+                else//igst
+                {
+                    TotalChargeableAmt = Convert.ToDecimal(dtParty.Rows[0]["TotalAmount"]) + Convert.ToDecimal(dtParty.Rows[0]["IGSTAmount"]);
+                    worksheet.Cells["B" + (ExlRowNo + 1)].Value = "Output IGST";
+                    worksheet.Cells["B" + (ExlRowNo + 1)].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Right;
+                    worksheet.Cells["K" + (ExlRowNo + 1)].Value = Convert.ToDecimal(dtParty.Rows[0]["IGSTAmount"]).ToString("F2");
+                }
+                worksheet.Cells["K44"].Value = TotalChargeableAmt.ToString("F2");
+                worksheet.Cells["A46"].Value = "INR " + NumToWordsConverter.AmountToWordsIndianFormat(TotalChargeableAmt);
+                //tax details
+                ExlRowNo = 49;
+                decimal TaxableVal = 0, GstRate = 0, GstAmt = 0, TotalGstAmt = 0, TotalTaxableVal = 0;
+
+                foreach (DataRow dr in distinctHsnCode.Rows)
+                {
+                    TaxableVal = Convert.ToDecimal(dr["TaxableValue"]);
+                    GstRate = Convert.ToDecimal(dr["TaxPerc_GST"]);
+                    GstAmt = (TaxableVal * GstRate) / 100;
+                    TotalGstAmt += GstAmt;
+                    TotalTaxableVal += TaxableVal;
+                    worksheet.Cells["A" + ExlRowNo].Value = dr["HsnCode"].ToString();
+                    if (InvTaxType == 0) //sgst cgst
+                    {
+                        worksheet.Cells["E" + ExlRowNo].Value = TaxableVal.ToString("F2");
+                        worksheet.Cells["F" + ExlRowNo].Value = (GstRate / 2) + "%";
+                        worksheet.Cells["G" + ExlRowNo].Value = (GstAmt / 2).ToString("F2");
+                        worksheet.Cells["H" + ExlRowNo].Value = (GstRate / 2) + "%";
+                        worksheet.Cells["I" + ExlRowNo].Value = (GstAmt / 2).ToString("F2");
+                        worksheet.Cells["K" + ExlRowNo].Value = GstAmt.ToString("F2");
+                    }
+                    else //igst
+                    {
+                        worksheet.Cells["G" + ExlRowNo].Value = TaxableVal.ToString("F2");
+                        worksheet.Cells["H" + ExlRowNo].Value = GstRate + "%";
+                        worksheet.Cells["I" + ExlRowNo].Value = GstAmt.ToString("F2");
+                        worksheet.Cells["K" + ExlRowNo].Value = GstAmt.ToString("F2");
+                    }
+                    DuplicateRowBelowOnlyStyle(worksheet, ExlRowNo);
+                    ExlRowNo++;
+                }
+
+                worksheet.Cells["A" + ExlRowNo].Value = "Total";
+                worksheet.Cells["A" + ExlRowNo].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Right;
+                if (InvTaxType == 0) //sgst cgst
+                {
+                    worksheet.Cells["E" + ExlRowNo].Value = TotalTaxableVal.ToString("F2");
+                    worksheet.Cells["G" + ExlRowNo].Value = (TotalGstAmt / 2).ToString("F2");
+                    worksheet.Cells["I" + ExlRowNo].Value = (TotalGstAmt / 2).ToString("F2");
+                    worksheet.Cells["K" + ExlRowNo].Value = TotalGstAmt.ToString("F2");
+                }
+                else //igst
+                {
+                    worksheet.Cells["G" + ExlRowNo].Value = TotalTaxableVal.ToString("F2");
+                    worksheet.Cells["I" + ExlRowNo].Value = TotalGstAmt.ToString("F2");
+                    worksheet.Cells["K" + ExlRowNo].Value = TotalGstAmt.ToString("F2");
+                }
+                worksheet.Cells["D" + (ExlRowNo + 1)].Value = "INR " + NumToWordsConverter.AmountToWordsIndianFormat(TotalGstAmt);
+
                 package.SaveAs(OutputFileName);
 
                 ConvertExcelToPdf(OutputFileName, Path.GetDirectoryName(OutputFileName));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+            }
+        }
+
+        public void DuplicateRowBelowOnlyStyle(ExcelWorksheet worksheet, int sourceRow)
+        {
+            try
+            {
+                int targetRow = sourceRow + 1;
+
+                // Step 1: Insert a new empty row below
+                worksheet.InsertRow(targetRow, 1);
+
+                // Step 2: Copy each cell's value, formula, and style
+                for (int col = 1; col <= worksheet.Dimension.End.Column; col++)
+                {
+                    var sourceCell = worksheet.Cells[sourceRow, col];
+                    var targetCell = worksheet.Cells[targetRow, col];
+
+                    // Copy formula or value
+                    if (!string.IsNullOrWhiteSpace(sourceCell.Formula))
+                    {
+                        targetCell.Formula = sourceCell.Formula;
+                    }
+                    //else
+                    //{
+                    //    targetCell.Value = sourceCell.Value;
+                    //}
+
+                    // Copy style
+                    targetCell.StyleID = sourceCell.StyleID;
+                    //targetCell.Clear();
+                }
+
+                // Step 3: Copy row height
+                worksheet.Row(targetRow).Height = worksheet.Row(sourceRow).Height;
+
+                // Step 4: Copy any merged cells within the row
+                foreach (var range in worksheet.MergedCells.ToList()) // ToList to avoid collection modification error
+                {
+                    var cell = worksheet.Cells[range];
+                    if (cell.Start.Row == sourceRow && cell.End.Row == sourceRow)
+                    {
+                        int startCol = cell.Start.Column;
+                        int endCol = cell.End.Column;
+
+                        string newMergeRange = ExcelCellBase.GetAddress(targetRow, startCol, targetRow, endCol);
+                        worksheet.Cells[newMergeRange].Merge = true;
+                    }
+                }
             }
             catch (Exception ex)
             {
