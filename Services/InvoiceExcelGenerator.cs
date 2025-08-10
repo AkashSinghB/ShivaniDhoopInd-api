@@ -18,7 +18,7 @@ namespace api_InvoicePortal.Services
             _config = config;
             _dataCls = new(_config);
         }
-        public void MainFun(DataSet ds)
+        public byte[] MainFun(DataSet ds, string OutputFileName)
         {
             try
             {
@@ -29,9 +29,10 @@ namespace api_InvoicePortal.Services
                 //DataTable distinctHsnCode = ds.Tables[2].AsEnumerable().GroupBy(row => row["HsnCode"]).Select(g => g.First()).CopyToDataTable();
 
                 string TemplateFileName = "TemplateInvoice.xlsx",
-                RootPath = _config.GetValue<string>("MySetting:RootPath").ToString(),
+
+                    RootPath = _config.GetValue<string>("MySetting:RootPath").ToString(),
                     TemplatePath = Path.Combine(RootPath, _config.GetValue<string>("MySetting:TemplatePath").ToString(), TemplateFileName),
-                    OutputFileName = "E:\\Akash Singh B\\Desktop\\Personal Work\\api_InvoicePortal\\download\\hell.xlsx";
+                    OutputFilePath = Path.Combine(RootPath, "download", OutputFileName + ".xlsx");
 
                 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
                 using var stream = new FileStream(TemplatePath, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -49,7 +50,7 @@ namespace api_InvoicePortal.Services
                 }
 
                 var worksheet = package.Workbook.Worksheets[0];
-
+                #region CompanyDetails
                 worksheet.Cells["D2"].Value = dtCompany.Rows[0]["CompanyName"].ToString().ToUpper();
                 worksheet.Cells["D4"].Value = dtCompany.Rows[0]["AddressLine1"].ToString() + " " + dtCompany.Rows[0]["AddressLine2"].ToString();
                 worksheet.Cells["E6"].Value = dtCompany.Rows[0]["StateName"].ToString() + ", Code: " + dtCompany.Rows[0]["StateCode"].ToString();
@@ -58,15 +59,18 @@ namespace api_InvoicePortal.Services
                 worksheet.Cells["E9"].Value = dtCompany.Rows[0]["GSTNumber"].ToString();
                 worksheet.Cells["D57"].Value = dtCompany.Rows[0]["PAN"].ToString();
                 worksheet.Cells["H58"].Value = "for " + dtCompany.Rows[0]["CompanyName"].ToString().ToUpper();
+                #endregion
 
                 //------------ Ship to ----------
+                #region Ship To
                 worksheet.Cells["A11"].Value = dtParty.Rows[0]["LedgerName"].ToString().ToUpper();
                 worksheet.Cells["A13"].Value = dtParty.Rows[0]["AddressLine1"].ToString() + " " + dtParty.Rows[0]["AddressLine2"].ToString();
                 worksheet.Cells["C14"].Value = dtParty.Rows[0]["StateName"].ToString() + ", Code: " + dtParty.Rows[0]["StateCode"].ToString();
                 worksheet.Cells["C15"].Value = dtParty.Rows[0]["GSTNumber"].ToString();
                 worksheet.Cells["C16"].Value = dtParty.Rows[0]["PhoneNumber"].ToString();
                 worksheet.Cells["C17"].Value = dtParty.Rows[0]["Email"].ToString();
-
+                #endregion
+                #region Bill To
                 //------------ Bill to ----------
                 worksheet.Cells["A19"].Value = dtParty.Rows[0]["LedgerName"].ToString().ToUpper();
                 worksheet.Cells["A21"].Value = dtParty.Rows[0]["AddressLine1"].ToString() + " " + dtParty.Rows[0]["AddressLine2"].ToString();
@@ -74,15 +78,17 @@ namespace api_InvoicePortal.Services
                 worksheet.Cells["C23"].Value = dtParty.Rows[0]["GSTNumber"].ToString();
                 worksheet.Cells["C24"].Value = dtParty.Rows[0]["PhoneNumber"].ToString();
                 worksheet.Cells["C25"].Value = dtParty.Rows[0]["Email"].ToString();
-
+                #endregion
                 //------------ Invoice Dtl ----------
+                #region Invoice Dtl
                 worksheet.Cells["G11"].Value = dtParty.Rows[0]["InvoiceNo"].ToString();
                 worksheet.Cells["I11"].Value = Convert.ToDateTime(dtParty.Rows[0]["InvoiceDate"].ToString()).ToString("dd-MMM-yy");
                 //worksheet.Cells["K44"].Value = "₹ " + dtParty.Rows[0]["TotalAmount"].ToString();
-
-                //------------ Line Items ----------
+                #endregion
+                //------------ Line Items ---------- 
+                #region LineItems
                 int ExlRowNo = 28, SrNo = 1; decimal TotalQty = 0, TotalChargeableAmt = 0;
-                foreach (DataRow dr in dtInvLineItem.Rows)
+                foreach (DataRow dr in dtInvLineItem.Rows) //when line item is greate than 6 then page break should happen
                 {
                     TotalQty += Convert.ToDecimal(dr["Quantity"]);
                     worksheet.Cells["A" + ExlRowNo].Value = SrNo++;
@@ -121,7 +127,9 @@ namespace api_InvoicePortal.Services
                 }
                 worksheet.Cells["K44"].Value = TotalChargeableAmt.ToString("F2");
                 worksheet.Cells["A46"].Value = "INR " + NumToWordsConverter.AmountToWordsIndianFormat(TotalChargeableAmt);
+                #endregion
                 //tax details
+                #region Tax Details
                 ExlRowNo = 49;
                 decimal TaxableVal = 0, GstRate = 0, GstAmt = 0, TotalGstAmt = 0, TotalTaxableVal = 0;
 
@@ -169,14 +177,16 @@ namespace api_InvoicePortal.Services
                     worksheet.Cells["K" + ExlRowNo].Value = TotalGstAmt.ToString("F2");
                 }
                 worksheet.Cells["D" + (ExlRowNo + 1)].Value = "INR " + NumToWordsConverter.AmountToWordsIndianFormat(TotalGstAmt);
+                #endregion
+                package.SaveAs(OutputFilePath);
 
-                package.SaveAs(OutputFileName);
-
-                ConvertExcelToPdf(OutputFileName, Path.GetDirectoryName(OutputFileName));
+                ConvertExcelToPdf(OutputFilePath, Path.GetDirectoryName(OutputFilePath) ?? "");
+                return File.Exists(OutputFilePath.Replace(".xlsx", ".pdf")) ? File.ReadAllBytes(OutputFilePath.Replace(".xlsx", ".pdf")) : null;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex.Message);
+                return null;
             }
         }
 
@@ -240,7 +250,8 @@ namespace api_InvoicePortal.Services
                 StartInfo = new ProcessStartInfo
                 {
                     FileName = @"C:\Program Files\LibreOffice\program\soffice.exe", // or full path to soffice.exe
-                    Arguments = $"--headless --convert-to pdf \"{inputPath}\" --outdir \"{outputFolder}\"",
+                    //Arguments = $"--headless --convert-to pdf \"{inputPath}\" --outdir \"{outputFolder}\"",
+                    Arguments = $"--headless --convert-to pdf:\"calc_pdf_Export:ExportBookmarks=false\" \"{inputPath}\" --outdir \"{outputFolder}\"",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,

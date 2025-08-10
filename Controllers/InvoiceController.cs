@@ -158,12 +158,15 @@ namespace api_InvoicePortal.Controllers
             _dataCls.GetDataset(procName, ref ds, param);
             if (ds.Tables[0].Rows.Count > 0)
             {
+                string OutputFileName = "Invoice_" + DateTime.Now.ToString("yyyyMMddhhmmssfff");
                 InvoiceExcelGenerator invoiceExcelGenerator = new(_config, _logger);
-                invoiceExcelGenerator.MainFun(ds);
+                byte[] pdfBytes = invoiceExcelGenerator.MainFun(ds, OutputFileName);
                 _logger.LogInformation("Invoice Printed: {InvoicePid}", id);
                 dynamic SuccessObj = new JObject();
                 SuccessObj.Result = "Success";
                 SuccessObj.Remarks = "Invoice Printed successfully";
+                SuccessObj.PdfBytes = pdfBytes;
+                SuccessObj.PdfFileName = OutputFileName;
                 return Ok(SuccessObj);
             }
             else
